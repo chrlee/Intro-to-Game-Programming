@@ -1,0 +1,6 @@
+﻿  main.cpp
+c:\users\christian\onedrive\documents\nyu tandon\fall 2017\cs-uy 3113\intro to game programming\pong\nyucodebase\main.cpp(148): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
+c:\users\christian\onedrive\documents\nyu tandon\fall 2017\cs-uy 3113\intro to game programming\pong\nyucodebase\main.cpp(159): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+c:\users\christian\onedrive\documents\nyu tandon\fall 2017\cs-uy 3113\intro to game programming\pong\nyucodebase\main.cpp(160): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+  NYUCodebase.vcxproj -> C:\Users\Christian\OneDrive\Documents\NYU Tandon\Fall 2017\CS-UY 3113\Intro to Game Programming\Pong\Debug\NYUCodebase.exe
+  NYUCodebase.vcxproj -> C:\Users\Christian\OneDrive\Documents\NYU Tandon\Fall 2017\CS-UY 3113\Intro to Game Programming\Pong\Debug\NYUCodebase.pdb (Partial PDB)
