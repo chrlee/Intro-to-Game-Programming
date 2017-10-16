@@ -1,3 +1,2 @@
 ﻿  main.cpp
-  NYUCodebase.vcxproj -> C:\Users\Christian\OneDrive\Documents\NYU Tandon\Fall 2017\CS-UY 3113\Intro to Game Programming\NYUCodebase\Debug\NYUCodebase.exe
-  NYUCodebase.vcxproj -> C:\Users\Christian\OneDrive\Documents\NYU Tandon\Fall 2017\CS-UY 3113\Intro to Game Programming\NYUCodebase\Debug\NYUCodebase.pdb (Partial PDB)
+LINK : fatal error LNK1201: error writing to program database 'C:\Users\Christian\OneDrive\Documents\NYU Tandon\Fall 2017\CS-UY 3113\Intro to Game Programming\NYUCodebase\Debug\NYUCodebase.pdb'; check for insufficient disk space, invalid path, or insufficient privilege
