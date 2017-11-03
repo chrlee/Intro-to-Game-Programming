@@ -1,0 +1,4 @@
+﻿  main.cpp
+c:\users\christian\onedrive\documents\nyu tandon\fall 2017\cs-uy 3113\intro to game programming\space invaders\nyucodebase\main.cpp(261): warning C4244: 'return': conversion from 'double' to 'float', possible loss of data
+  NYUCodebase.vcxproj -> C:\Users\Christian\OneDrive\Documents\NYU Tandon\Fall 2017\CS-UY 3113\Intro to Game Programming\Space Invaders\Debug\NYUCodebase.exe
+  NYUCodebase.vcxproj -> C:\Users\Christian\OneDrive\Documents\NYU Tandon\Fall 2017\CS-UY 3113\Intro to Game Programming\Space Invaders\Debug\NYUCodebase.pdb (Partial PDB)

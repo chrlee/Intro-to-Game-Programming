@@ -378,7 +378,7 @@ void ProcessEvents(SDL_Event & event, bool& done, GameState*& currentState, std:
 		if (event.type == SDL_QUIT || event.type == SDL_WINDOWEVENT_CLOSE) {
 			done = true;
 		}
-		if (event.type == SDL_KEYDOWN) {
+		if (event.type == SDL_KEYUP) {
 			if (currentState->type == GameState::STATE_MENU) {
 				currentState = states[1];
 				currentState->bgEntities = states[0]->bgEntities;
@@ -467,26 +467,6 @@ void ProcessEvents(SDL_Event & event, bool& done, GameState*& currentState, std:
 			done = allDead;
 		}
 	}
-	/*
-	if (isCollidingRect(entities[2], entities[0]) || isCollidingRect(entities[2], entities[1])) entities[2]->direction_x *= -1;
-	if (isCollidingRect(entities[2], entities[3]) || isCollidingRect(entities[2], entities[4])) entities[2]->direction_y *= -1;
-
-	if (isCollidingRect(entities[2], entities[5])) {
-		//Game Over, Resets Ball
-		entities[2]->x = 0.0f;
-		entities[2]->y = 0.0f;
-
-		//Player 2 Wins
-		// whateverHappensAfterP2WinsFunction();
-	}
-	if (isCollidingRect(entities[2], entities[6])) {
-		//Game Over, Resets Ball
-		entities[2]->x = 0.0f;
-		entities[2]->y = 0.0f;
-
-		//Player 1 Wins
-		// whateverHappensAfterP1WinsFunction();
-	}*/
 }
 
 void Update(GameState* state, float elapsed) {
