@@ -126,7 +126,7 @@ public:
 class Entity {
 public:
 	enum ENTITY_TYPE { ENTITY_PLAYER, ENTITY_SNAIL };
-	Entity(ENTITY_TYPE type, SheetSprite sprite, float x, float y) : position(x, y, 0.0f), size(1.0f, 1.0f, 1.0f), sprite(sprite), type(type){
+	Entity(ENTITY_TYPE type, SheetSprite sprite, float x, float y) : position(x, y, 0.0f), size(1.0f, 1.0f, 1.0f), sprite(sprite), rotation(0.0f), type(type){
 		matrix.SetPosition(x, y, 0.0f);
 		alive = true;
 	};
@@ -172,8 +172,9 @@ public:
 	enum STATE_TYPE { STATE_MENU, STATE_GAME };
 	GameState(STATE_TYPE type) : type(type) {}
 	std::vector<Entity*> entities;
-	std::vector<Entity*> bgEntities;
+	int** levelData;
 	STATE_TYPE type;
+	std::vector<SheetSprite> sprites;
 };
 
 /**********************************************
@@ -189,11 +190,13 @@ float randf(float a, float b);
 
 std::array<float, 4> pxToUV(int sheetWidth, int sheetHeight, int xPx, int yPx, int width, int height);
 
-bool readHeader(std::ifstream& stream);
+bool readHeader(std::ifstream &stream, int**& levelData, int mapWidth, int mapHeight);
 
-bool readLayerData(std::ifstream& stream);
+bool readLayerData(std::ifstream &stream, int** levelData, int mapWidth, int mapHeight);
 
-bool readEntityData(std::ifstream& stream);
+bool readEntityData(std::ifstream &stream, GameState& state, int TILE_SIZE);
+
+void placeEntity(std::string type, GameState& state, float placeX, float placeY);
 
 ShaderProgram Setup();
 
@@ -318,7 +321,7 @@ std::array<float, 4> pxToUV(int sheetWidth, int sheetHeight, int xPx, int yPx, i
 	return out;
 }
 
-bool readHeader(std::ifstream &stream) {
+bool readHeader(std::ifstream &stream, int**& levelData, int mapWidth, int mapHeight) {
 	std::string line;
 	mapWidth = -1;
 	mapHeight = -1;
@@ -347,7 +350,7 @@ bool readHeader(std::ifstream &stream) {
 	}
 }
 
-bool readLayerData(std::ifstream &stream) {
+bool readLayerData(std::ifstream &stream, int** levelData, int mapWidth, int mapHeight) {
 	std::string line;
 	while (getline(stream, line)) {
 		if (line == "") { break; }
@@ -377,7 +380,7 @@ bool readLayerData(std::ifstream &stream) {
 	return true;
 }
 
-bool readEntityData(std::ifstream &stream) {
+bool readEntityData(std::ifstream &stream, GameState& state, int TILE_SIZE) {
 	std::string line;
 	std::string type;
 	while (getline(stream, line)) {
@@ -393,13 +396,20 @@ bool readEntityData(std::ifstream &stream) {
 			std::istringstream lineStream(value);
 			std::string xPosition, yPosition;
 			getline(lineStream, xPosition, ',');
-			getline(lineStream, yPosition, ‘, ');
-				float placeX = atoi(xPosition.c_str())*TILE_SIZE;
+			getline(lineStream, yPosition, ',');
+			float placeX = atoi(xPosition.c_str())*TILE_SIZE;
 			float placeY = atoi(yPosition.c_str())*-TILE_SIZE;
-			placeEntity(type, placeX, placeY);
+			placeEntity(type, state, placeX, placeY);
 		}
 	}
 	return true;
+}
+
+void placeEntity(std::string type, GameState& state, float placeX, float placeY) {
+	Entity::ENTITY_TYPE entityType;
+	if (type == "Player") entityType = Entity::ENTITY_PLAYER;
+	else if (type == "Snail") entityType = Entity::ENTITY_SNAIL;
+	state.entities.push_back(new Entity(entityType, state.sprites[entityType], placeX, placeY));
 }
 
 
@@ -437,80 +447,31 @@ ShaderProgram Setup() {
 }
 
 std::vector<GameState*> Instantiate() {
-	// Load background and textures
-	unsigned int spriteSheetTexture = LoadTexture("spritesheet.png");
-	int sheetWidth = 694;
-	int sheetHeight = 372;
-	Vector bgStarPosition(0.0f, 2.0f, 0.0f);
-	Vector const bgStarVelocity(0.0f, -1.0f, 0.0f);
-	Vector const bgStarSize(0.01f, 0.01f, 0.0f);
-	Vector const bgStarAcceleration(0.0f, 0.0f, 0.0f);
-	SheetSprite const starSprite(spriteSheetTexture, pxToUV(sheetWidth, sheetHeight, 0, 240, 1, 1), 1.0f);
-	SheetSprite const logoSprite(spriteSheetTexture, pxToUV(sheetWidth, sheetHeight, 437, 500, 99, 59), 1.0f);
-	std::vector<SheetSprite> sprites;
-	sprites.push_back(SheetSprite(spriteSheetTexture, pxToUV(sheetWidth, sheetHeight, 131, 624, 73, 52), 1.0f)); // 0. Player
-	sprites.push_back(SheetSprite(spriteSheetTexture, pxToUV(sheetWidth, sheetHeight, 340, 618, 96, 58), 1.0f)); // 1. Explosion
-	sprites.push_back(SheetSprite(spriteSheetTexture, pxToUV(sheetWidth, sheetHeight, 468, 380, 28, 51), 1.0f)); // 2. Enemy Projectile
-	sprites.push_back(SheetSprite(spriteSheetTexture, pxToUV(sheetWidth, sheetHeight, 293, 0, 80, 80), 1.0f));   // 3. Enemies Row 1
-	sprites.push_back(SheetSprite(spriteSheetTexture, pxToUV(sheetWidth, sheetHeight, 146, 0, 110, 80), 1.0f));  // 4. Enemies Row 2
-	sprites.push_back(SheetSprite(spriteSheetTexture, pxToUV(sheetWidth, sheetHeight, 0, 0, 110, 80), 1.0f));    // 5. Enemies Row 3
-	sprites.push_back(SheetSprite(spriteSheetTexture, pxToUV(sheetWidth, sheetHeight, 0, 120, 120, 80), 1.0f));  // 6. Enemies Row 4
-	sprites.push_back(SheetSprite(spriteSheetTexture, pxToUV(sheetWidth, sheetHeight, 141, 120, 120, 80), 1.0f));// 7. Enemies Row 5
-
 	std::vector<GameState*> states;
-	states.push_back(new GameState(GameState::STATE_MENU));
 	states.push_back(new GameState(GameState::STATE_GAME));
+	states[0]->sprites.emplace_back(LoadTexture("spritesheet.png"), pxToUV(694, 372, 3 + 21 * 19, 3 + 21 * 0, 21, 21), 1.0f);
+	states[0]->sprites.emplace_back(LoadTexture("spritesheet.png"), pxToUV(694, 372, 3 + 21 * 14, 3 + 21 * 15, 21, 21), 1.0f);
 
-	for (int i = 0; i < 30; ++i) {
-		bgStarPosition = Vector(randf(-3.55f, 3.55f), randf(-2.0f, 2.0f), 0.0f);
-		states[0]->bgEntities.push_back(new Entity(bgStarPosition, bgStarSize, bgStarVelocity, bgStarAcceleration, starSprite, Entity::ENTITY_STAR, true));
-	}
-	states[0]->entities.push_back(new Entity(0.0f, 0.0f, 0.0f, 2.0f, 1.1f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, logoSprite, Entity::ENTITY_LETTER, true));
-
-	states[1]->entities.push_back(new Entity(0.0f, -1.7f, 0.0f, 0.3f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, sprites[0], Entity::ENTITY_PLAYER, true));
-	float enemyWidth = 0.3f;
-	float enemyHeight = 0.2f;
-	float spacing = 0.5f;
-	for (int i = 0; i < 5; ++i) {
-		for (int j = 0; j < 8; ++j) {
-			Vector enemyPosition(-1.75f + spacing*j, 1.7f - spacing*i, 0.0f);
-			Vector enemySize(enemyWidth, enemyHeight, 0.0f);
-			Vector enemyVelocity(0.3f, 0.0f, 0.0f);
-			Vector zero;
-			states[1]->entities.push_back(new Entity(enemyPosition, enemySize, enemyVelocity, zero, sprites[i + 3], Entity::ENTITY_ENEMY, true));
-		}
-	}
-	for (int i = 0; i < 10; ++i) {
-		Vector offScreen(4.0f, 0.0f, 0.0f);
-		Vector bulletSize(0.025f, 0.15f, 0.0f);
-		Vector zero;
-		states[1]->entities.push_back(new Entity(offScreen, bulletSize, zero, zero, starSprite, Entity::ENTITY_BULLET, false));
-	}
-	for (int i = 0; i < 10; ++i) {
-		Vector offScreen(0.0f, 3.0f, 0.0f);
-		Vector bulletSize(0.07f, 0.2f, 0.0f);
-		Vector zero;
-		states[1]->entities.push_back(new Entity(offScreen, bulletSize, zero, zero, sprites[2], Entity::ENTITY_BULLET, false));
-	}
-
+	// Load background and textures
 	std::string const levelFile = ("MapFlare.txt");
 
+	int mapWidth = 40;
+	int mapHeight = 15;
 	std::ifstream infile(levelFile);
 	std::string line;
 	while (getline(infile, line)) {
 		if (line == "[header]") {
-			if (!readHeader(infile)) {
+			if (!readHeader(infile, states[0]->levelData, mapWidth, mapHeight)) {
 				assert(false);
 			}
 		}
 		else if (line == "[layer]") {
-			readLayerData(infile);
+			readLayerData(infile, states[0]->levelData, mapWidth, mapHeight);
 		}
 		else if (line == "[ObjectsLayer]") {
-			readEntityData(infile);
+			readEntityData(infile, *states[0], 21);
 		}
 	}
-
 	return states;
 }
 
@@ -524,7 +485,6 @@ void ProcessEvents(SDL_Event & event, bool& done, GameState*& currentState, std:
 		if (event.type == SDL_KEYUP) {
 			if (currentState->type == GameState::STATE_MENU) {
 				currentState = states[1];
-				currentState->bgEntities = states[0]->bgEntities;
 			}
 			else if (currentState->type == GameState::STATE_GAME && currentState->entities[0]->alive) {
 				if (event.key.keysym.scancode == SDL_SCANCODE_SPACE) {
@@ -544,132 +504,17 @@ void ProcessEvents(SDL_Event & event, bool& done, GameState*& currentState, std:
 
 	// Keyboard Polling
 	const Uint8* keys = SDL_GetKeyboardState(NULL);
-	if (keys[SDL_SCANCODE_RIGHT] && currentState->entities[0]->position.x + currentState->entities[0]->size.x / 2 < 3.55) {
-		currentState->entities[0]->velocity.x = 2;
-	}
-	if (keys[SDL_SCANCODE_LEFT] && currentState->entities[0]->position.x - currentState->entities[0]->size.x / 2 > -3.55) {
-		currentState->entities[0]->velocity.x = -2;
-	}
 	
-	// Collisions and other events
-	if (currentState->type == GameState::STATE_GAME) {
-		// Turn the enemies
-		bool turn = false;
-		for (int i = 0; i < 8; ++i) {
-			if (turn) break;
-			for (int j = 0; j < 5; ++j) {
-				if (turn = (currentState->entities[1 + i * 5 + j]->position.x > 3.4 && currentState->entities[1 + i * 5 + j]->velocity.x > 0)
-					|| (currentState->entities[1 + i * 5 + j]->position.x < -3.4 && currentState->entities[1 + i * 5 + j]->velocity.x < 0)) break;
-			}
-		}
-		if (turn) {
-			for (int i = 1; i < 41; ++i) {
-				currentState->entities[i]->velocity.x *= -1;
-			}
-		}
-
-		// Player Bullet Collision
-		for(int i = 41; i < 51; ++i) {
-			for(int j = 1; j < 41; ++j) {
-				if (currentState->entities[i]->alive && currentState->entities[j]->alive &&isCollidingRect(currentState->entities[i], currentState->entities[j])) {
-					currentState->entities[i]->alive = currentState->entities[j]->alive = false;
-				}
-			}
-		}
-
-		// Enemy Bullet Generation
-		if (randf(0.0f, 1.0f) < 0.0005) {
-			int i = 51;
-			while (currentState->entities[i]->alive && i <= 57) ++i;
-			if (i < 57) {
-				Entity* bullet = currentState->entities[i];
-				bullet->alive = true;
-				int randIdx = rand() % 40 + 1;
-				while(!currentState->entities[randIdx]->alive) randIdx = rand() % 40 + 1;
-				bullet->position = Vector(currentState->entities[randIdx]->position.x, currentState->entities[randIdx]->position.y - 0.2f, 0.0f);
-				bullet->velocity = Vector(0.0f, -1.5f, 0.0f);
-			}
-		}
-
-		// Enemy Bullet Collision
-		for(int i = 51; i < 57; ++i) {
-			if (done) break;
-			if (isCollidingRect(currentState->entities[0], currentState->entities[i])) {
-				currentState->entities[0]->alive = currentState->entities[i]->alive = false;
-				done = true;
-			}
-		}
-
-		// Check if all enemies are dead
-		if (!done) {
-			bool allDead = true;
-			for (int i = 1; i < 41; ++i) {
-				if (!allDead) break;
-				if (currentState->entities[i]->alive) allDead = false;
-			}
-			done = allDead;
-		}
-	}
 }
 
 void Update(GameState* state, float elapsed) {
-	switch(state->type)
-	{
-	case GameState::STATE_MENU :
-		for (Entity*& ent : state->entities) {
-			//ent->velocity += ent->acceleration;
-			//ent->position += ent->velocity * elapsed;
-
-		}
-		for (Entity*& ent : state->bgEntities) {
-			ent->position += ent->velocity * elapsed;
-			if(ent->position.y < -2.0f) {
-				ent->position = Vector(randf(-3.55f, 3.55f), 2.0f + randf(0.0f, 1.0f), 0.0f);
-			}
-		}
-	case GameState::STATE_GAME :
-		for (Entity*& ent : state->entities) {
-			if (ent->alive) {
-				ent->position += ent->velocity * elapsed;
-			}
-			if (ent->type == Entity::ENTITY_PLAYER) ent->velocity = Vector(0.0f, 0.0f, 0.0f);
-			else if (ent->type == Entity::ENTITY_BULLET) {
-				if (ent->position.y > 3.0f || ent->position.y < -3.0f) ent->alive = false;
-			}
-		}
-		for (Entity*& ent : state->bgEntities) {
-			ent->position += ent->velocity * elapsed;
-			if (ent->position.y < -2.0f) {
-				ent->position = Vector(randf(-3.55f, 3.55f), 2.0f + randf(0.0f, 1.0f), 0.0f);
-			}
-		}
-	}
-
 
 }
 
+
+
 void Render(Matrix& projectionMatrix, Matrix& modelviewMatrix, ShaderProgram& program, GameState* state) {
 	glClear(GL_COLOR_BUFFER_BIT);
-	switch(state->type)
-	{
-	case GameState::STATE_MENU :
-		for (Entity*& ent : state->entities) {
-			modelviewMatrix.Identity();
-			//modelviewMatrix.Translate(ent->direction_x, ent->direction_y, 0.0f);
-			program.SetModelviewMatrix(modelviewMatrix);
-			program.SetProjectionMatrix(projectionMatrix);
-			glUseProgram(program.programID);
-			ent->Draw(program);
-		}
-		for (Entity*& ent : state->bgEntities) {
-			modelviewMatrix.Identity();
-			//modelviewMatrix.Translate(ent->direction_x, ent->direction_y, 0.0f);
-			program.SetModelviewMatrix(modelviewMatrix);
-			program.SetProjectionMatrix(projectionMatrix);
-			glUseProgram(program.programID);
-			ent->Draw(program);
-		}
-	case GameState::STATE_GAME :
 		for (Entity*& ent : state->entities) {
 			if (ent->alive) {
 				modelviewMatrix.Identity();
@@ -680,15 +525,6 @@ void Render(Matrix& projectionMatrix, Matrix& modelviewMatrix, ShaderProgram& pr
 				ent->Draw(program);
 			}
 		}
-		for (Entity*& ent : state->bgEntities) {
-			modelviewMatrix.Identity();
-			//modelviewMatrix.Translate(ent->direction_x, ent->direction_y, 0.0f);
-			program.SetModelviewMatrix(modelviewMatrix);
-			program.SetProjectionMatrix(projectionMatrix);
-			glUseProgram(program.programID);
-			ent->Draw(program);
-		}
-	}
 
 	SDL_GL_SwapWindow(displayWindow);
 }
