@@ -39,6 +39,7 @@ SDL_Window* displayWindow;
 // SpriteSheet
 class SheetSprite {
 public:
+	SheetSprite() {};
 	SheetSprite(unsigned int textureID, std::array<float, 4> coords, float size) :
 		textureID(textureID), u(coords[0]), v(coords[1]), width(coords[2]), height(coords[3]), size(size) {};
 	SheetSprite(unsigned int textureID, float u, float v, float width, float height, float size) : 
@@ -173,8 +174,11 @@ public:
 	GameState(STATE_TYPE type) : type(type) {}
 	std::vector<Entity*> entities;
 	int** levelData;
+	int levelWidth;
+	int levelHeight;
+	std::map<int, bool> solids;
 	STATE_TYPE type;
-	std::vector<SheetSprite> sprites;
+	std::map<int, SheetSprite> sprites;
 };
 
 /**********************************************
@@ -190,23 +194,23 @@ float randf(float a, float b);
 
 std::array<float, 4> pxToUV(int sheetWidth, int sheetHeight, int xPx, int yPx, int width, int height);
 
-bool readHeader(std::ifstream &stream, int**& levelData, int mapWidth, int mapHeight);
+bool readHeader(std::ifstream &stream, GameState* state);
 
-bool readLayerData(std::ifstream &stream, int** levelData, int mapWidth, int mapHeight);
+bool readLayerData(std::ifstream &stream, GameState* state);
 
-bool readEntityData(std::ifstream &stream, GameState& state, int TILE_SIZE);
+bool readEntityData(std::ifstream &stream, GameState* state, int TILE_SIZE);
 
-void placeEntity(std::string type, GameState& state, float placeX, float placeY);
+void placeEntity(std::string type, GameState* state, float placeX, float placeY);
 
 ShaderProgram Setup();
 
 std::vector<GameState*> Instantiate();
 
-void ProcessEvents(SDL_Event& event, bool& done, GameState*& currentState, std::vector<GameState*>& states);
+void ProcessEvents(SDL_Event& event, bool& done, GameState* currentState, std::vector<GameState*>& states);
 
 void Update(GameState* state, float elapsed);
 
-void Render(Matrix& projectionMatrix, Matrix& modelviewMatrix, ShaderProgram& program, GameState* state);
+void Render(Matrix& projectionMatrix, Matrix& modelMatrix, Matrix& viewMatrix, ShaderProgram& program, GameState* state);
 
 void Cleanup();
 
@@ -222,8 +226,9 @@ int main(int argc, char *argv[])
 
 	// Setup Projection Matrix
 	Matrix projectionMatrix;
-	projectionMatrix.SetOrthoProjection(-3.55f, 3.55f, -2.0f, 2.0f, -1.0f, 1.0f);
-	Matrix modelviewMatrix;
+	projectionMatrix.SetOrthoProjection(-7.1f, 7.1f, -4.0f, 4.0f, -1.0f, 1.0f);
+	Matrix modelMatrix;
+	Matrix viewMatrix;
 
 	float lastFrameTicks = 0.0f;
 
@@ -252,7 +257,7 @@ int main(int argc, char *argv[])
 			elapsed -= FIXED_TIMESTEP;
 		}
 		accumulator = elapsed;
-		Render(projectionMatrix, modelviewMatrix, program, currentState);
+		Render(projectionMatrix, modelMatrix, viewMatrix, program, currentState);
 	}
 
 
@@ -300,6 +305,19 @@ bool isCollidingRect(Entity* r1, Entity* r2){
 	return true;
 }
 
+bool isCollidingRect(Entity* r1, Vector position, Vector size) {
+	// Is r1 bottom > r2 top?
+	if (r1->position.y - r1->size.y / 2 > position.y + size.y / 2) return false;
+	// Is r1 top < r2 bottom?
+	if (r1->position.y + r1->size.y / 2 < position.y - size.y / 2) return false;
+	// Is r1 left > r2 right?
+	if (r1->position.x - r1->size.y / 2 > position.x + size.y / 2) return false;
+	// Is r1 right < r2 left?
+	if (r1->position.x + r1->size.y / 2 < position.x - size.y / 2) return false;
+
+	return true;
+}
+
 float lerp(float v0, float v1, float t) {
 	return (1.0 - t)*v0 + t*v1;
 }
@@ -321,10 +339,10 @@ std::array<float, 4> pxToUV(int sheetWidth, int sheetHeight, int xPx, int yPx, i
 	return out;
 }
 
-bool readHeader(std::ifstream &stream, int**& levelData, int mapWidth, int mapHeight) {
+bool readHeader(std::ifstream &stream, GameState* state) {
 	std::string line;
-	mapWidth = -1;
-	mapHeight = -1;
+	state->levelWidth = -1;
+	state->levelHeight = -1;
 	while (getline(stream, line)) {
 		if (line == "") { break; }
 		std::istringstream sStream(line);
@@ -332,25 +350,25 @@ bool readHeader(std::ifstream &stream, int**& levelData, int mapWidth, int mapHe
 		getline(sStream, key, '=');
 		getline(sStream, value);
 		if (key == "width") {
-			mapWidth = atoi(value.c_str());
+			state->levelWidth = atoi(value.c_str());
 		}
 		else if (key == "height") {
-			mapHeight = atoi(value.c_str());
+			state->levelHeight = atoi(value.c_str());
 		}
 	}
-	if (mapWidth == -1 || mapHeight == -1) {
+	if (state->levelWidth == -1 || state->levelHeight == -1) {
 		return false;
 	}
 	else { // allocate our map data
-		levelData = new int*[mapHeight];
-		for (int i = 0; i < mapHeight; ++i) {
-			levelData[i] = new int[mapWidth];
+		state->levelData = new int*[state->levelHeight];
+		for (int i = 0; i < state->levelHeight; ++i) {
+			state->levelData[i] = new int[state->levelWidth];
 		}
 		return true;
 	}
 }
 
-bool readLayerData(std::ifstream &stream, int** levelData, int mapWidth, int mapHeight) {
+bool readLayerData(std::ifstream &stream, GameState* state) {
 	std::string line;
 	while (getline(stream, line)) {
 		if (line == "") { break; }
@@ -359,19 +377,19 @@ bool readLayerData(std::ifstream &stream, int** levelData, int mapWidth, int map
 		getline(sStream, key, '=');
 		getline(sStream, value);
 		if (key == "data") {
-			for (int y = 0; y < mapHeight; y++) {
+			for (int y = 0; y < state->levelHeight; y++) {
 				getline(stream, line);
 				std::istringstream lineStream(line);
 				std::string tile;
-				for (int x = 0; x < mapWidth; x++) {
+				for (int x = 0; x < state->levelWidth; x++) {
 					getline(lineStream, tile, ',');
 					int val = atoi(tile.c_str());
 					if (val > 0) {
 						// be careful, the tiles in this format are indexed from 1 not 0
-						levelData[y][x] = val - 1;
+						state->levelData[y][x] = val - 1;
 					}
 					else {
-						levelData[y][x] = 0;
+						state->levelData[y][x] = 0;
 					}
 				}
 			}
@@ -380,7 +398,7 @@ bool readLayerData(std::ifstream &stream, int** levelData, int mapWidth, int map
 	return true;
 }
 
-bool readEntityData(std::ifstream &stream, GameState& state, int TILE_SIZE) {
+bool readEntityData(std::ifstream &stream, GameState* state, int TILE_SIZE) {
 	std::string line;
 	std::string type;
 	while (getline(stream, line)) {
@@ -405,11 +423,11 @@ bool readEntityData(std::ifstream &stream, GameState& state, int TILE_SIZE) {
 	return true;
 }
 
-void placeEntity(std::string type, GameState& state, float placeX, float placeY) {
+void placeEntity(std::string type, GameState* state, float placeX, float placeY) {
 	Entity::ENTITY_TYPE entityType;
 	if (type == "Player") entityType = Entity::ENTITY_PLAYER;
 	else if (type == "Snail") entityType = Entity::ENTITY_SNAIL;
-	state.entities.push_back(new Entity(entityType, state.sprites[entityType], placeX, placeY));
+	state->entities.push_back(new Entity(entityType, state->sprites[entityType], placeX, placeY));
 }
 
 
@@ -449,8 +467,20 @@ ShaderProgram Setup() {
 std::vector<GameState*> Instantiate() {
 	std::vector<GameState*> states;
 	states.push_back(new GameState(GameState::STATE_GAME));
-	states[0]->sprites.emplace_back(LoadTexture("spritesheet.png"), pxToUV(694, 372, 3 + 21 * 19, 3 + 21 * 0, 21, 21), 1.0f);
-	states[0]->sprites.emplace_back(LoadTexture("spritesheet.png"), pxToUV(694, 372, 3 + 21 * 14, 3 + 21 * 15, 21, 21), 1.0f);
+	states[0]->sprites[Entity::ENTITY_PLAYER] = SheetSprite(LoadTexture("spritesheet.png"), pxToUV(694, 372, 3 + 21 * 19 + 19 * 2, 3 + 21 * 0, 21, 21), 1.0f);
+	states[0]->sprites[Entity::ENTITY_SNAIL] = SheetSprite(LoadTexture("spritesheet.png"), pxToUV(694, 372, 3 + 21 * 14 + 2 * 14, 3 + 21 * 15 + 2*15, 21, 21), 1.0f);
+	states[0]->solids[124 - 1] = true;
+	states[0]->solids[127 - 1] = true;
+	states[0]->solids[126 - 1] = true;
+	states[0]->solids[156 - 1] = true;
+	states[0]->solids[125 - 1] = true;
+	states[0]->solids[159 - 1] = true;
+	states[0]->solids[160 - 1] = true;
+	states[0]->solids[71 - 1] = true;
+	states[0]->solids[130 - 1] = true;
+	states[0]->solids[279 - 1] = true;
+	states[0]->solids[244 - 1] = true;
+	states[0]->solids[278 - 1] = true;
 
 	// Load background and textures
 	std::string const levelFile = ("MapFlare.txt");
@@ -461,41 +491,34 @@ std::vector<GameState*> Instantiate() {
 	std::string line;
 	while (getline(infile, line)) {
 		if (line == "[header]") {
-			if (!readHeader(infile, states[0]->levelData, mapWidth, mapHeight)) {
+			if (!readHeader(infile, states[0])) {
 				assert(false);
 			}
 		}
 		else if (line == "[layer]") {
-			readLayerData(infile, states[0]->levelData, mapWidth, mapHeight);
+			readLayerData(infile, states[0]);
 		}
-		else if (line == "[ObjectsLayer]") {
-			readEntityData(infile, *states[0], 21);
+		else if (line == "[Object Layer]") {
+			readEntityData(infile, states[0], 1);
 		}
 	}
 	return states;
 }
 
-void ProcessEvents(SDL_Event & event, bool& done, GameState*& currentState, std::vector<GameState*>& states){
+void ProcessEvents(SDL_Event & event, bool& done, GameState* currentState, std::vector<GameState*>& states){
 	// SDL Event Loop
 	while (SDL_PollEvent(&event)) {
 		// Quit or Close Event
 		if (event.type == SDL_QUIT || event.type == SDL_WINDOWEVENT_CLOSE) {
 			done = true;
 		}
-		if (event.type == SDL_KEYUP) {
+		if (event.type == SDL_KEYDOWN) {
 			if (currentState->type == GameState::STATE_MENU) {
 				currentState = states[1];
 			}
 			else if (currentState->type == GameState::STATE_GAME && currentState->entities[0]->alive) {
 				if (event.key.keysym.scancode == SDL_SCANCODE_SPACE) {
-					int i = 41;
-					while (currentState->entities[i]->alive && i <= 51) ++i;
-					if (i < 51) {
-						Entity* bullet = currentState->entities[i];
-						bullet->alive = true;
-						bullet->position = Vector(currentState->entities[0]->position.x, currentState->entities[0]->position.y + 0.2f, 0.0f);
-						bullet->velocity = Vector(0.0f, 1.5f, 0.0f);
-					}
+					currentState->entities[0]->velocity.y = 5;
 				}
 			}
 			
@@ -504,27 +527,132 @@ void ProcessEvents(SDL_Event & event, bool& done, GameState*& currentState, std:
 
 	// Keyboard Polling
 	const Uint8* keys = SDL_GetKeyboardState(NULL);
+	if (keys[SDL_SCANCODE_RIGHT] && currentState->entities[0]->position.x + currentState->entities[0]->size.x / 2 < 40) {
+		currentState->entities[0]->velocity.x = 2;
+	}
+	if (keys[SDL_SCANCODE_LEFT] && currentState->entities[0]->position.x - currentState->entities[0]->size.x / 2 > 0.0f) {
+		currentState->entities[0]->velocity.x = -2;
+	}
 	
+
+
 }
 
 void Update(GameState* state, float elapsed) {
+	state->entities[1]->velocity.x = -1;
+	for (Entity*& ent : state->entities) {
+		ent->acceleration.y = -5.0f;
+		if (ent->alive) {
+			
+			ent->velocity.x = lerp(ent->velocity.x, 0.0f, elapsed);
+			ent->velocity.x += ent->acceleration.x*elapsed;
+			ent->position += ent->velocity * elapsed;
 
+			ent->velocity.y += ent->acceleration.y * elapsed;
+			for (int y = 0; y < state->levelHeight; ++y) {
+				for (int x = 0; x < state->levelWidth; ++x) {
+					if (state->solids[state->levelData[y][x]]) {
+						Vector pos(x + 0.5f, -y - 0.5f, 0.0f);
+						Vector size(1.0f, 1.0f, 0.0f);
+						if (isCollidingRect(ent, pos, size)) {
+							ent->position.y += ((pos.y + size.y / 2) - (ent->position.y - ent->size.y / 2))*elapsed;
+							//ent->position.x += ((pos.x + size.x / 2) - (ent->position.x - ent->size.x / 2))*elapsed;
+							ent->velocity.y = 0;
+							if (state->levelData[y][x] == 70) ent->alive = false;
+						}
+					}
+				}
+			}
+			Entity* player = state->entities[0];
+			if(ent != state->entities[0] && isCollidingRect(player, ent)) {
+				if(player->position.y - (player->size.y/2) >= ent->position.y + (ent->size.y/2) - 0.1f && player->velocity.y < 0) {
+					ent->alive = false;
+					player->velocity.y = 5;
+				}
+				else {
+					player->alive = false;
+				}
+				//else if(ent1 == state->e)
+			}
+			
+		}
+	}
 }
 
 
 
-void Render(Matrix& projectionMatrix, Matrix& modelviewMatrix, ShaderProgram& program, GameState* state) {
+void Render(Matrix& projectionMatrix, Matrix& modelMatrix, Matrix& viewMatrix, ShaderProgram& program, GameState* state) {
 	glClear(GL_COLOR_BUFFER_BIT);
-		for (Entity*& ent : state->entities) {
-			if (ent->alive) {
-				modelviewMatrix.Identity();
-				//modelviewMatrix.Translate(ent->direction_x, ent->direction_y, 0.0f);
-				program.SetModelviewMatrix(modelviewMatrix);
-				program.SetProjectionMatrix(projectionMatrix);
-				glUseProgram(program.programID);
-				ent->Draw(program);
+	modelMatrix.Identity();
+	viewMatrix.Identity();
+	if(state->entities[0]->position.x < 7.1) viewMatrix.Translate(-7.1f, 0.0f, 0.0f);
+	else if (state->entities[0]->position.x > 40-7.1) viewMatrix.Translate(-(40-7.1), 0.0f, 0.0f);
+	else viewMatrix.Translate(-state->entities[0]->position.x, 0.0f, 0.0f);
+	if (state->entities[0]->position.y < -9.0) viewMatrix.Translate(0.0f, 9.0f, 0.0f);
+	else viewMatrix.Translate(0.0f, -state->entities[0]->position.y, 0.0f);
+
+	//viewMatrix.Translate(0.0f, 0.1f, 0.0f);
+	program.SetModelviewMatrix(modelMatrix*viewMatrix);
+	program.SetProjectionMatrix(projectionMatrix);
+	glUseProgram(program.programID);
+	std::vector<float> vertexData;
+	std::vector<float> texCoordData;
+	float TILE_SIZE = 1.0f;
+	int SPRITE_COUNT_X = 30;
+	int SPRITE_COUNT_Y = 16;
+	// if index 0 is an empty tile
+	for (int y = 0; y < state->levelHeight; y++) {
+		for (int x = 0; x < state->levelWidth; x++) {
+			if (state->levelData[y][x]) {
+				// add vertices
+				float spriteWidth = 21.0f / 694.0f;
+				float spriteHeight = 21.0f / 372.0f;
+				float u = (3 + (23 * ((int)state->levelData[y][x] % SPRITE_COUNT_X))) / 694.0f;
+				float v = (3 + (23 * ((int)state->levelData[y][x] / SPRITE_COUNT_X))) / 372.0f;
+				
+				vertexData.insert(vertexData.end(), {
+					TILE_SIZE * x, -TILE_SIZE * y,
+					TILE_SIZE * x, (-TILE_SIZE * y) - TILE_SIZE,
+					(TILE_SIZE * x) + TILE_SIZE, (-TILE_SIZE * y) - TILE_SIZE,
+					TILE_SIZE * x, -TILE_SIZE * y,
+					(TILE_SIZE * x) + TILE_SIZE, (-TILE_SIZE * y) - TILE_SIZE,
+					(TILE_SIZE * x) + TILE_SIZE, -TILE_SIZE * y
+				});
+				texCoordData.insert(texCoordData.end(), {
+					u, v,
+					u, v + (spriteHeight),
+					u + spriteWidth, v + (spriteHeight),
+					u, v,
+					u + spriteWidth, v + (spriteHeight),
+					u + spriteWidth, v
+				});
 			}
 		}
+	}
+
+
+	float* vertices = &vertexData[0];
+	float* tex = &texCoordData[0];
+
+	//program.SetModelviewMatrix(modelMatrix*viewMatrix);
+	//program.SetProjectionMatrix(projectionMatrix);
+	//glUseProgram(program.programID);
+	glVertexAttribPointer(program.positionAttribute, 2, GL_FLOAT, false, 0, vertices);
+	glEnableVertexAttribArray(program.positionAttribute);
+	glBindTexture(GL_TEXTURE_2D, 1);
+	glVertexAttribPointer(program.texCoordAttribute, 2, GL_FLOAT, false, 0, tex);
+	glEnableVertexAttribArray(program.texCoordAttribute);
+	glDrawArrays(GL_TRIANGLES, 0, vertexData.size()-1);
+
+	glDisableVertexAttribArray(program.positionAttribute);
+	glDisableVertexAttribArray(program.texCoordAttribute);
+
+	for (Entity*& ent : state->entities) {
+		if (ent->alive) {
+			//modelviewMatrix.Translate(ent->direction_x, ent->direction_y, 0.0f);
+			ent->Draw(program);
+		}
+	}
 
 	SDL_GL_SwapWindow(displayWindow);
 }
