@@ -459,7 +459,7 @@ ShaderProgram Setup() {
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glClearColor(0.0, 0.0, 0.0, 0.0);
+	glClearColor(94.0f/256, 129.0f/256, 162.0f/256, 0.0f);
 
 	return *program;
 }
@@ -637,12 +637,12 @@ void Render(Matrix& projectionMatrix, Matrix& modelMatrix, Matrix& viewMatrix, S
 	//program.SetModelviewMatrix(modelMatrix*viewMatrix);
 	//program.SetProjectionMatrix(projectionMatrix);
 	//glUseProgram(program.programID);
+	glBindTexture(GL_TEXTURE_2D, 1);
 	glVertexAttribPointer(program.positionAttribute, 2, GL_FLOAT, false, 0, vertices);
 	glEnableVertexAttribArray(program.positionAttribute);
-	glBindTexture(GL_TEXTURE_2D, 1);
 	glVertexAttribPointer(program.texCoordAttribute, 2, GL_FLOAT, false, 0, tex);
 	glEnableVertexAttribArray(program.texCoordAttribute);
-	glDrawArrays(GL_TRIANGLES, 0, vertexData.size()-1);
+	glDrawArrays(GL_TRIANGLES, 0, vertexData.size()/2);
 
 	glDisableVertexAttribArray(program.positionAttribute);
 	glDisableVertexAttribArray(program.texCoordAttribute);
