@@ -1,7 +1,5 @@
-﻿  main.cpp
-c:\users\christian\onedrive\documents\nyu tandon\fall 2017\cs-uy 3113\intro to game programming\platformer + audio\nyucodebase\main.cpp(324): warning C4244: 'return': conversion from 'double' to 'float', possible loss of data
-c:\users\christian\onedrive\documents\nyu tandon\fall 2017\cs-uy 3113\intro to game programming\platformer + audio\nyucodebase\main.cpp(420): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
-c:\users\christian\onedrive\documents\nyu tandon\fall 2017\cs-uy 3113\intro to game programming\platformer + audio\nyucodebase\main.cpp(421): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
-c:\users\christian\onedrive\documents\nyu tandon\fall 2017\cs-uy 3113\intro to game programming\platformer + audio\nyucodebase\main.cpp(607): warning C4305: 'argument': truncation from 'double' to 'float'
+﻿  Skipping... (no relevant changes detected)
+  main.cpp
+main.obj : warning LNK4099: PDB 'vc141.pdb' was not found with 'main.obj' or at 'C:\Users\Christian\OneDrive\Documents\NYU Tandon\Fall 2017\CS-UY 3113\Intro to Game Programming\Platformer + Audio\Debug\vc141.pdb'; linking object as if no debug info
   NYUCodebase.vcxproj -> C:\Users\Christian\OneDrive\Documents\NYU Tandon\Fall 2017\CS-UY 3113\Intro to Game Programming\Platformer + Audio\Debug\NYUCodebase.exe
   NYUCodebase.vcxproj -> C:\Users\Christian\OneDrive\Documents\NYU Tandon\Fall 2017\CS-UY 3113\Intro to Game Programming\Platformer + Audio\Debug\NYUCodebase.pdb (Partial PDB)
