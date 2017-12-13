@@ -1,8 +1,12 @@
 ﻿  main.cpp
-c:\users\christian\onedrive\documents\nyu tandon\fall 2017\cs-uy 3113\intro to game programming\final\nyucodebase\main.cpp(332): warning C4244: 'return': conversion from 'double' to 'float', possible loss of data
-c:\users\christian\onedrive\documents\nyu tandon\fall 2017\cs-uy 3113\intro to game programming\final\nyucodebase\main.cpp(428): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
-c:\users\christian\onedrive\documents\nyu tandon\fall 2017\cs-uy 3113\intro to game programming\final\nyucodebase\main.cpp(429): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
-c:\users\christian\onedrive\documents\nyu tandon\fall 2017\cs-uy 3113\intro to game programming\final\nyucodebase\main.cpp(787): warning C4305: 'argument': truncation from 'double' to 'float'
-c:\users\christian\onedrive\documents\nyu tandon\fall 2017\cs-uy 3113\intro to game programming\final\nyucodebase\main.cpp(794): warning C4305: 'argument': truncation from 'double' to 'float'
+c:\users\christian\onedrive\documents\nyu tandon\fall 2017\cs-uy 3113\intro to game programming\final\nyucodebase\main.cpp(335): warning C4244: 'return': conversion from 'double' to 'float', possible loss of data
+c:\users\christian\onedrive\documents\nyu tandon\fall 2017\cs-uy 3113\intro to game programming\final\nyucodebase\main.cpp(431): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+c:\users\christian\onedrive\documents\nyu tandon\fall 2017\cs-uy 3113\intro to game programming\final\nyucodebase\main.cpp(432): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+c:\users\christian\onedrive\documents\nyu tandon\fall 2017\cs-uy 3113\intro to game programming\final\nyucodebase\main.cpp(762): warning C4244: '=': conversion from 'float' to 'int', possible loss of data
+c:\users\christian\onedrive\documents\nyu tandon\fall 2017\cs-uy 3113\intro to game programming\final\nyucodebase\main.cpp(767): warning C4244: '=': conversion from 'float' to 'int', possible loss of data
+c:\users\christian\onedrive\documents\nyu tandon\fall 2017\cs-uy 3113\intro to game programming\final\nyucodebase\main.cpp(779): warning C4244: '=': conversion from 'float' to 'int', possible loss of data
+c:\users\christian\onedrive\documents\nyu tandon\fall 2017\cs-uy 3113\intro to game programming\final\nyucodebase\main.cpp(784): warning C4244: '=': conversion from 'float' to 'int', possible loss of data
+c:\users\christian\onedrive\documents\nyu tandon\fall 2017\cs-uy 3113\intro to game programming\final\nyucodebase\main.cpp(842): warning C4305: 'argument': truncation from 'double' to 'float'
+c:\users\christian\onedrive\documents\nyu tandon\fall 2017\cs-uy 3113\intro to game programming\final\nyucodebase\main.cpp(849): warning C4305: 'argument': truncation from 'double' to 'float'
   NYUCodebase.vcxproj -> C:\Users\Christian\OneDrive\Documents\NYU Tandon\Fall 2017\CS-UY 3113\Intro to Game Programming\Final\Debug\NYUCodebase.exe
   NYUCodebase.vcxproj -> C:\Users\Christian\OneDrive\Documents\NYU Tandon\Fall 2017\CS-UY 3113\Intro to Game Programming\Final\Debug\NYUCodebase.pdb (Partial PDB)

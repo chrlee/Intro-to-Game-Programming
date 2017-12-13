@@ -174,6 +174,9 @@ public:
 	 */
 	bool contact[4];
 	int health;
+	std::vector<SheetSprite> frames;
+	int frame = 0;
+	int lastFrame = 0;
 };
 
 // Game States
@@ -218,7 +221,7 @@ std::vector<GameState*> Instantiate();
 
 void ProcessEvents(SDL_Event& event, bool& done, GameState*& currentState, std::vector<GameState*>& states);
 
-void Update(GameState* state, float elapsed);
+void Update(GameState* state, float elapsed, float ticks);
 
 void Render(Matrix& projectionMatrix, Matrix& modelMatrix, Matrix& viewMatrix, ShaderProgram& program, GameState* state);
 
@@ -263,7 +266,7 @@ int main(int argc, char *argv[])
 			continue;
 		}
 		while (elapsed >= FIXED_TIMESTEP) {
-			Update(currentState, FIXED_TIMESTEP);
+			Update(currentState, FIXED_TIMESTEP, ticks);
 			elapsed -= FIXED_TIMESTEP;
 		}
 		accumulator = elapsed;
@@ -471,7 +474,7 @@ ShaderProgram Setup() {
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	
+	glBlendColor(94.0f / 256, 129.0f / 256, 162.0f / 256, 0.0f);
 
 	// Setup SDL_Mixer
 	Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 4096);
@@ -492,15 +495,11 @@ std::vector<GameState*> Instantiate() {
 	states.push_back(new GameState(GameState::STATE_WIN));
 	states.push_back(new GameState(GameState::STATE_LOSE));
 
-	states[0]->sprites[0] = SheetSprite(LoadTexture("spritesheet.png"), pxToUV(694, 372, 3 + 21 * 19 + 19 * 2, 3 + 21 * 0, 21, 21), 1.0f);
-
-
-	
-	for(int i = 1; i < 4; ++i) {
+	for (int i = 1; i < 4; ++i) {
 		states[i]->sprites[Entity::ENTITY_PLAYER] = SheetSprite(LoadTexture("spritesheet.png"), pxToUV(694, 372, 3 + 21 * 19 + 19 * 2, 3 + 21 * 0, 21, 21), 1.0f);
 		states[i]->sprites[Entity::ENTITY_SNAIL] = SheetSprite(LoadTexture("spritesheet.png"), pxToUV(694, 372, 3 + 21 * 14 + 2 * 14, 3 + 21 * 15 + 2 * 15, 21, 21), 1.0f);
 		states[i]->sprites[Entity::ENTITY_FLY] = SheetSprite(LoadTexture("spritesheet.png"), pxToUV(694, 372, 3 + 21 * 13 + 2 * 13, 3 + 21 * 14 + 2 * 14, 21, 21), 1.0f);
-		states[i]->sprites[Entity::ENTITY_BOSS] = SheetSprite(LoadTexture("spritesheet.png"), pxToUV(694, 372, 3 + 21 * 19 + 19 * 2, 3 + 21 * 2 + 2*2, 21, 21), 1.0f);
+		states[i]->sprites[Entity::ENTITY_BOSS] = SheetSprite(LoadTexture("spritesheet.png"), pxToUV(694, 372, 3 + 21 * 19 + 19 * 2, 3 + 21 * 2 + 2 * 2, 21, 21), 1.0f);
 		states[i]->solids[124 - 1] = true;
 		states[i]->solids[127 - 1] = true;
 		states[i]->solids[126 - 1] = true;
@@ -632,6 +631,25 @@ std::vector<GameState*> Instantiate() {
 		}
 	}
 	infile.close();
+
+	for(int i = 1; i < 4; ++i){
+		states[i]->entities[0]->frames.push_back(SheetSprite(LoadTexture("spritesheet.png"), pxToUV(694, 372, 3 + 21 * 19 + 20 * 2, 3 + 21 * 0, 21, 21), 1.0f));
+		states[i]->entities[0]->frames.push_back(SheetSprite(LoadTexture("spritesheet.png"), pxToUV(694, 372, 3 + 21 * 28 + 28 * 2, 3 + 21 * 0, 21, 21), 1.0f));
+		states[i]->entities[0]->frames.push_back(SheetSprite(LoadTexture("spritesheet.png"), pxToUV(694, 372, 3 + 21 * 29 + 29 * 2, 3 + 21 * 0, 21, 21), 1.0f));
+		if(states[i]->entities[1]->type == Entity::ENTITY_FLY) {
+			for (int j = 1; j < 4; ++j) {
+				states[i]->entities[j]->frames.push_back(SheetSprite(LoadTexture("spritesheet.png"), pxToUV(694, 372, 3 + 21 * 13 + 2 * 13, 3 + 21 * 14 + 2 * 14, 21, 21), 1.0f));
+				states[i]->entities[j]->frames.push_back(SheetSprite(LoadTexture("spritesheet.png"), pxToUV(694, 372, 3 + 21 * 14 + 2 * 13, 3 + 21 * 14 + 2 * 14, 21, 21), 1.0f));
+			}
+		}
+		else if(states[i]->entities[1]->type == Entity::ENTITY_BOSS){
+			states[i]->entities[1]->frames.push_back(SheetSprite(LoadTexture("spritesheet.png"), pxToUV(694, 372, 3 + 21 * 28 + 28 * 2, 3 + 21 * 2 + 2 * 2, 21, 21), 1.0f));
+			states[i]->entities[1]->frames.push_back(SheetSprite(LoadTexture("spritesheet.png"), pxToUV(694, 372, 3 + 21 * 29 + 29 * 2, 3 + 21 * 2 + 2 * 2, 21, 21), 1.0f));
+
+		}
+	}
+
+
 	return states;
 }
 
@@ -654,7 +672,9 @@ void ProcessEvents(SDL_Event & event, bool& done, GameState*& currentState, std:
 		}
 		break;
 	case GameState::STATE_TYPE::STATE_GAME: {
+		// Win or Lose
 		if (currentState->entities[0]->alive == false) currentState = states[4];
+		else if (currentState->entities[1]->alive == false && currentState->entities[1]->type == Entity::ENTITY_BOSS) currentState = states[5];
 		else {
 			while (SDL_PollEvent(&event)) {
 				// Quit or Close Event
@@ -662,8 +682,8 @@ void ProcessEvents(SDL_Event & event, bool& done, GameState*& currentState, std:
 					done = true;
 				}
 				if (event.type == SDL_KEYDOWN) {
-					if (currentState->type == GameState::STATE_MENU) {
-						currentState = states[1];
+					if (event.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
+						done = true;
 					}
 					else if (currentState->type == GameState::STATE_GAME && currentState->entities[0]->alive) {
 						if (event.key.keysym.scancode == SDL_SCANCODE_SPACE && currentState->entities[0]->contact[2]) {
@@ -671,7 +691,9 @@ void ProcessEvents(SDL_Event & event, bool& done, GameState*& currentState, std:
 							currentState->entities[0]->velocity.y = 6;
 						}
 					}
-
+					if (event.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
+						done = true;
+					}
 				}
 			}
 
@@ -679,9 +701,19 @@ void ProcessEvents(SDL_Event & event, bool& done, GameState*& currentState, std:
 			const Uint8* keys = SDL_GetKeyboardState(NULL);
 			if (keys[SDL_SCANCODE_RIGHT] && currentState->entities[0]->position.x + currentState->entities[0]->size.x / 2 < 40) {
 				currentState->entities[0]->velocity.x = 3;
+				if (currentState->entities[0]->frame == 0 || currentState->entities[0]->frame == 1) { ++currentState->entities[0]->frame;  currentState->entities[0]->sprite = currentState->entities[0]->frames[2]; }
+				else if (currentState->entities[0]->frame == 2) {
+					--currentState->entities[0]->frame;
+					currentState->entities[0]->sprite = currentState->entities[0]->frames[1];
+				}
 			}
 			if (keys[SDL_SCANCODE_LEFT] && currentState->entities[0]->position.x - currentState->entities[0]->size.x / 2 > 0.0f) {
 				currentState->entities[0]->velocity.x = -3;
+				if (currentState->entities[0]->frame == 0 || currentState->entities[0]->frame == 1) { ++currentState->entities[0]->frame;  currentState->entities[0]->sprite = currentState->entities[0]->frames[2]; }
+				else if (currentState->entities[0]->frame == 2) {
+					--currentState->entities[0]->frame;
+					currentState->entities[0]->sprite = currentState->entities[0]->frames[1];
+				}
 			}
 			if ((currentState == states[1] || currentState == states[2]) && currentState->entities[0]->position.x + currentState->entities[0]->size.x / 2 >= 40) {
 				if (currentState == states[1]) currentState = states[2];
@@ -708,11 +740,12 @@ void ProcessEvents(SDL_Event & event, bool& done, GameState*& currentState, std:
 	}
 
 }
-
-void Update(GameState* state, float elapsed) {
+void Update(GameState* state, float elapsed, float ticks) {
 	switch(state->type) {
 	case GameState::STATE_TYPE::STATE_GAME:
+		if (state->entities[0]->position.y < -15) state->entities[0]->hit();
 		if(state->entities[1]->type == Entity::ENTITY_SNAIL) state->entities[1]->velocity.x = -1;
+		// Boss Behavior
 		else if(state->entities[1]->type == Entity::ENTITY_BOSS) {
 			Entity* player = state->entities[0];
 			Entity* boss = state->entities[1];
@@ -722,12 +755,35 @@ void Update(GameState* state, float elapsed) {
 				if (boss->position.x > 7.5f) boss->velocity.x = -8.0f;
 				else boss->velocity.x = 8.0f;
 			}
-			if (rand() % 100 == 1 && boss->position.y < 4.0f) boss->velocity.y = 4.0f + (5-boss->health)/2;
+			if (rand() % 100 == 1 && boss->position.y < 2.0f && (boss->contact[2] || boss->health < 3)) boss->velocity.y = 4.0f + (5-boss->health)/2;
+			if (boss->frame == 0 && boss->lastFrame + 0.9f < ticks && boss->contact[2]) {
+				boss->frame++;
+				boss->sprite = boss->frames[boss->frame];
+				boss->lastFrame = ticks;
+			}
+			else if (boss->frame == 1 && boss->lastFrame + 0.9f < ticks && boss->contact[2]) {
+				boss->frame--;
+				boss->sprite = boss->frames[boss->frame];
+				boss->lastFrame = ticks;
+			}
 		}
+		// All Collision Checking
 		for (Entity*& ent : state->entities) {
 			ent->acceleration.y = -6.0f;
 			if (ent->alive) {
-				if (ent->type == Entity::ENTITY_FLY) ent->position.y += 0;
+				if (ent->type == Entity::ENTITY_FLY) {
+					ent->position.y += sin(ticks)*elapsed;
+					if(ent->frame == 0 && ent->lastFrame + 1.0f < ticks) {
+						ent->frame++;
+						ent->sprite = ent->frames[ent->frame];
+						ent->lastFrame = ticks;
+					}
+					else if(ent->frame == 1 && ent->lastFrame + 1.0f < ticks){
+						ent->frame--;
+						ent->sprite = ent->frames[ent->frame];
+						ent->lastFrame = ticks;
+					}
+				}
 				else {
 					if(ent->type != Entity::ENTITY_BOSS) ent->velocity.x = lerp(ent->velocity.x, 0.0f, elapsed);
 					ent->velocity.x += ent->acceleration.x*elapsed;
@@ -765,7 +821,6 @@ void Update(GameState* state, float elapsed) {
 
 					Mix_PlayChannel(-1, state->sounds[1], 0);
 				}
-
 			}
 		}
 	}
@@ -855,10 +910,10 @@ void Render(Matrix& projectionMatrix, Matrix& modelMatrix, Matrix& viewMatrix, S
 		glDisableVertexAttribArray(program.texCoordAttribute);
 		break;
 	}
-	case GameState::STATE_TYPE::STATE_WIN:{}
-	case GameState::STATE_TYPE::STATE_LOSE:{}
-	case GameState::STATE_TYPE::STATE_MENU: {}
-		viewMatrix.Translate(-3.55f, 1.0f, 0.0f);
+	case GameState::STATE_TYPE::STATE_WIN: {}
+	case GameState::STATE_TYPE::STATE_LOSE:{viewMatrix.Translate(1.2f, 0.4f, 0.0f); }
+	case GameState::STATE_TYPE::STATE_MENU: {viewMatrix.Translate(-3.55f, 1.0f, 0.0f); }
+		
 		
 		program.SetModelviewMatrix(modelMatrix*viewMatrix);
 		program.SetProjectionMatrix(projectionMatrix);
